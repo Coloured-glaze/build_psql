@@ -104,6 +104,8 @@ jobs:
 
       - name: Package into tar.gz
         id: package
+        env:
+          OUTPUT: ${{ github.workspace }}/psql
         run: |
           TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
           echo ${{ github.workspace }} && ls -lh &&  ls -lh "$OUTPUT"
