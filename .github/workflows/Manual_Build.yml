@@ -108,9 +108,9 @@ jobs:
           wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
-          ./configure --prefix="$OUTPUT" --enable-static \${{ inputs.configure_flags }}
-          make -j$(nproc)
-          make install
+          ./configure --prefix="$OUTPUT" --enable-static --disable-shared LDFLAGS="-static -lstdc++ -lm" ${{ inputs.configure_flags }} 
+          make -j$(nproc) 
+          make install 
 
       - name: Package into tar.gz
         id: package
@@ -118,6 +118,8 @@ jobs:
           OUTPUT: ${{ github.workspace }}/psql
         run: |
           TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
+          file "$OUTPUT/bin/postgres"
+          ldd "$OUTPUT/bin/postgres"
           $OUTPUT/bin/psql -V
           echo ${{ github.workspace }} && ls -lh "$OUTPUT"
           tar -czf "$TAR" "$OUTPUT" 
