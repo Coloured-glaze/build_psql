@@ -55,14 +55,14 @@ jobs:
         run: |
           case "${{ inputs.version }}" in
             commit)
-              version=$(git rev-parse --short HEAD)
+              version="$(git rev-parse --short HEAD)-${{ inputs.version }}"
               ;;
             tag)
-              version=$(git describe --tags --abbrev=0)
+              version="git-$(git describe --tags --abbrev=0)-${{ inputs.version }}"
               ;;
             version)
               if [ -f VERSION ]; then
-                version=$(cat VERSION)
+                version=$(cat VERSION)-${{ inputs.version }}
               else
                 version="${{ inputs.version }}"
               fi
