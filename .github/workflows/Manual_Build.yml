@@ -1,109 +1,126 @@
-
-name: Manual build 
+name: Manual build
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'custom info or commit / version / tag'
+        description: '自定义版本：若为 commit、tag、version 则自动获取'
         default: 'commit'
         required: true
         type: string
       postgresql_version:
-        description: 'postgresql versions'
+        description: 'PostgreSQL 版本'
         default: '17.4'
         required: true
         type: string
-      configure_flag:
-        description: 'configure flag'
+      configure_flags:
+        description: 'Configure 参数'
         default: ''
         required: true
         type: string
-      os_version:
-        description: 'os_version: ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm，ubuntu-22.04-arm, ubuntu-latest'
+      os_label:
+        description: '运行环境 (ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm)'
         default: 'ubuntu-24.04-arm'
         required: true
         type: string
       upload_artifact:
-        description: 'upload artifact: 0 or 1'
+        description: '是否上传 Artifact (0/1)'
         default: '0'
         required: true
         type: string
       addl_info:
-        description: 'additional information'
+        description: '附加信息'
         default: ''
         required: false
-        type: string
-      
-jobs:
 
-  wheel:
-    name: ${{ inputs.os_version }}
-    runs-on: ${{ inputs.os_version }}
+jobs:
+  build:
+    name: Build on ${{ inputs.os_label }}
+    runs-on: ${{ inputs.os_label }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Determine version
+        id: determine_version
+        run: |
+          case "${{ inputs.version }}" in
+            commit)
+              version=$(git rev-parse --short HEAD)
+              ;;
+            tag)
+              version=$(git describe --tags --abbrev=0)
+              ;;
+            version)
+              if [ -f VERSION ]; then
+                version=$(cat VERSION)
+              else
+                version="${{ inputs.version }}"
+              fi
+              ;;
+            *)
+              version="${{ inputs.version }}"
+              ;;
+          esac
+          echo "determined_version=$version" >> $GITHUB_OUTPUT
+
       - name: Print release tag
         run: |
-          echo ${{ inputs.addl_info }} postgresql-${{ inputs.version }}-${{ inputs.os_version }}
+          echo "${{ inputs.addl_info }}postgresql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}"
         shell: bash
 
       - name: Free up disk space
         if: ${{ runner.os == 'Linux' }}
-        # https://github.com/easimon/maximize-build-space/blob/master/action.yml
-        # https://github.com/easimon/maximize-build-space/tree/test-report
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
 
       - name: Set up swap space
-        if: runner.os == 'Linux'
+        if: ${{ runner.os == 'Linux' }}
         uses: pierotofy/set-swap-space@v1.0
         with:
           swap-size-gb: 10
 
-      - name: Build postgresql-${{ inputs.version }}-${{ inputs.os_version }}
+      - name: Install build dependencies
         run: |
-          output=${{ github.workspace }}/psql
-          psql_version=${{ inputs.postgresql_version }}
-          echo "target: " $output
-          apt update
-          apt install wget curl gcc g++ make libicu-dev bison flex build-essential liblz4-dev lz4 pkg-config libreadline-dev zlib1g-dev libxml2-dev libxml2 libssh-dev uuid-dev libossp-uuid-dev llvm -y
-          gcc --version
+          sudo apt-get update
+          sudo apt-get install -y \
+            wget curl gcc g++ make libicu-dev bison flex \
+            liblz4-dev pkg-config libreadline-dev zlib1g-dev \
+            libxml2-dev libssh-dev uuid-dev llvm
 
-          mkdir $output
-
-          wget https://ftp.postgresql.org/pub/source/v$psql_version/postgresql-$psql_version.tar.gz
-
-          tar -zxf postgresql-$psql_version.tar.gz -C ./ && cd postgresql-$psql_version
-
-          ./configure --prefix=$output ${{ inputs.configure_flag }}
-          make -j$(nproc) && make install
-        shell: bash
-
-      - name: Print postgresql path
-        id: psql_path
+      - name: Build PostgreSQL ${{ inputs.postgresql_version }}
+        env:
+          PSQL_VER: ${{ inputs.postgresql_version }}
+          OUTPUT: ${{ github.workspace }}/psql
         run: |
-          tar_path=${{ github.workspace }}/psql-${{ inputs.version }}-${{ inputs.os_version }}.tar.gz
-          ls -lh ${{ github.workspace }}/psql 
-          tar -czf $tar_path psql && ls -lh 
-          echo "result_path=$tar_path" >> "$GITHUB_ENV"
-          echo "result path: ${{ env.result_path }}"
-        shell: bash
+          mkdir -p "$OUTPUT"
+          wget https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
+          tar -zxf postgresql-$PSQL_VER.tar.gz
+          cd postgresql-$PSQL_VER
+          ./configure --prefix="$OUTPUT" ${{ inputs.configure_flags }}
+          make -j$(nproc)
+          make install
+
+      - name: Package into tar.gz
+        id: package
+        run: |
+          TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
+          tar -czf "$GITHUB_WORKSPACE/$TAR" -C "$OUTPUT" .
+          echo "result_path=$GITHUB_WORKSPACE/$TAR" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         if: ${{ inputs.upload_artifact == '1' }}
-        uses: actions/upload-artifact@v4.4.0
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{inputs.addl_info}}${{inputs.version}}-${{inputs.os_version}}-${{ github.run_id }}
-          retention-days: 14
-          path: |
-            ${{ steps.psql_path.outputs.result_path }}
+          name: ${{ inputs.addl_info }}${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}-${{ github.run_id }}
+          path: ${{ steps.package.outputs.result_path }}
 
-      - uses: softprops/action-gh-release@v2.0.8
+      - name: Create GitHub Release
+        if: ${{ inputs.upload_artifact == '1' }}
+        uses: softprops/action-gh-release@v2.0.8
         with:
-          tag_name: ${{ inputs.addl_info }}${{ inputs.version }}-${{ inputs.os_version }}
-          files: |
-            ${{  steps.psql_path.outputs.result_path }}
+          tag_name: ${{ inputs.addl_info }}${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}
+          files: ${{ steps.package.outputs.result_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
