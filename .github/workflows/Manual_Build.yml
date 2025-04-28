@@ -110,7 +110,11 @@ jobs:
           wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
-          ./configure --prefix="$OUTPUT" ${{ inputs.configure_flags }} 
+          CRT_PATH=$(gcc -print-file-name=crtbegin.o | sed 's/crtbegin.o//')
+          ./configure \
+            --prefix="$OUTPUT" --enable-static --disable-shared --without-icu \
+            LDFLAGS="-static -nostdlib ${CRT_PATH}crtbegin.o ${CRT_PATH}crtend.o -lstdc++ -lm -lc -lgcc_eh -lgcc" \
+            CFLAGS="-fPIC" "${{ inputs.configure_flags }}"
           make -j$(nproc) 
           make install 
 
