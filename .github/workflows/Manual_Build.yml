@@ -1,0 +1,109 @@
+
+name: Manual build 
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'custom info or commit / version / tag'
+        default: 'commit'
+        required: true
+        type: string
+      postgresql_version:
+        description: 'postgresql versions'
+        default: '17.4'
+        required: true
+        type: string
+      configure_flag:
+        description: 'configure flag'
+        default: ''
+        required: true
+        type: string
+      os_version:
+        description: 'os_version: ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm，ubuntu-22.04-arm, ubuntu-latest'
+        default: 'ubuntu-24.04-arm'
+        required: true
+        type: string
+      upload_artifact:
+        description: 'upload artifact: 0 or 1'
+        default: '0'
+        required: true
+        type: string
+      addl_info:
+        description: 'additional information'
+        default: ''
+        required: false
+        type: string
+      
+jobs:
+
+  wheel:
+    name: ${{ inputs.os_version }}
+    runs-on: ${{ inputs.os_version }}
+
+    steps:
+      - name: Print release tag
+        run: |
+          echo ${{ inputs.addl_info }} postgresql-${{ inputs.version }}-${{ inputs.os_version }}
+        shell: bash
+
+      - name: Free up disk space
+        if: ${{ runner.os == 'Linux' }}
+        # https://github.com/easimon/maximize-build-space/blob/master/action.yml
+        # https://github.com/easimon/maximize-build-space/tree/test-report
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+      - name: Set up swap space
+        if: runner.os == 'Linux'
+        uses: pierotofy/set-swap-space@v1.0
+        with:
+          swap-size-gb: 10
+
+      - name: Build postgresql-${{ inputs.version }}-${{ inputs.os_version }}
+        run: |
+          output=${{ github.workspace }}/psql
+          psql_version=${{ inputs.postgresql_version }}
+          echo "target: " $output
+          apt update
+          apt install wget curl gcc g++ make libicu-dev bison flex build-essential liblz4-dev lz4 pkg-config libreadline-dev zlib1g-dev libxml2-dev libxml2 libssh-dev uuid-dev libossp-uuid-dev llvm -y
+          gcc --version
+
+          mkdir $output
+
+          wget https://ftp.postgresql.org/pub/source/v$psql_version/postgresql-$psql_version.tar.gz
+
+          tar -zxf postgresql-$psql_version.tar.gz -C ./ && cd postgresql-$psql_version
+
+          ./configure --prefix=$output ${{ inputs.configure_flag }}
+          make -j$(nproc) && make install
+        shell: bash
+
+      - name: Print postgresql path
+        id: psql_path
+        run: |
+          tar_path=${{ github.workspace }}/psql-${{ inputs.version }}-${{ inputs.os_version }}.tar.gz
+          ls -lh ${{ github.workspace }}/psql 
+          tar -czf $tar_path psql && ls -lh 
+          echo "result_path=$tar_path" >> "$GITHUB_ENV"
+          echo "result path: ${{ env.result_path }}"
+        shell: bash
+
+      - name: Upload artifact
+        if: ${{ inputs.upload_artifact == '1' }}
+        uses: actions/upload-artifact@v4.4.0
+        with:
+          name: ${{inputs.addl_info}}${{inputs.version}}-${{inputs.os_version}}-${{ github.run_id }}
+          retention-days: 14
+          path: |
+            ${{ steps.psql_path.outputs.result_path }}
+
+      - uses: softprops/action-gh-release@v2.0.8
+        with:
+          tag_name: ${{ inputs.addl_info }}${{ inputs.version }}-${{ inputs.os_version }}
+          files: |
+            ${{  steps.psql_path.outputs.result_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
