@@ -97,6 +97,9 @@ jobs:
             liblz4-dev pkg-config libreadline-dev zlib1g-dev \
             libxml2-dev libssh-dev uuid-dev llvm \
             build-essential libreadline-dev zlib1g-dev
+
+          sudo apt-get install -y libicu-dev libicu-static
+          ls /usr/lib/aarch64-linux-gnu/libicu*.a
           gcc --version
 
       - name: Build PostgreSQL ${{ inputs.postgresql_version }}
@@ -108,7 +111,9 @@ jobs:
           wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
-          ./configure --prefix="$OUTPUT" --enable-static --disable-shared LDFLAGS="-static -lstdc++ -lm" ${{ inputs.configure_flags }} 
+          ./configure --prefix="$OUTPUT" --enable-static --disable-shared \
+          LDFLAGS="-static -lstdc++ -lm -lsupc++ -Wl,--start-group -lc -lgcc_eh -lgcc -Wl,--end-group" --with-openssl --with-libxml --with-libxslt --with-icu \
+          ${{ inputs.configure_flags }} 
           make -j$(nproc) 
           make install 
 
