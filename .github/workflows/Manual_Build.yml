@@ -126,14 +126,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           retention-days: 14
-          name: ${{ inputs.addl_info }}${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}-${{ github.run_id }}
+          name: ${{ inputs.addl_info }}postgresql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.version }}-${{ inputs.os_label }}-${{ github.run_id }}
           path: ${{ steps.package.outputs.result_path }}
 
       - name: Create GitHub Release
         if: ${{ inputs.release == '1' }}
         uses: softprops/action-gh-release@v2.0.8
         with:
-          tag_name: ${{ inputs.addl_info }}${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}
+          tag_name: ${{ inputs.addl_info }}postgresql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.version }}-${{ inputs.os_label }}
           files: ${{ steps.package.outputs.result_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
