@@ -28,6 +28,11 @@ on:
         default: '0'
         required: true
         type: string
+      release:
+        description: '是否发布 release (0/1)'
+        default: '0'
+        required: true
+        type: string
       addl_info:
         description: '附加信息'
         default: ''
@@ -108,10 +113,10 @@ jobs:
           OUTPUT: ${{ github.workspace }}/psql
         run: |
           TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
-          echo ${{ github.workspace }} && ls -lh &&  ls -lh "$OUTPUT"
-          tar -czf "$TAR" -C "$OUTPUT" .
+          echo ${{ github.workspace }} && ls -lh "$OUTPUT"
+          tar -czf "$TAR" -C "$OUTPUT" . 
           echo "result_path=${{ github.workspace }}/$TAR" >> $GITHUB_OUTPUT
-          echo "result path=$TAR"
+          echo "result path: $TAR" && ls -lh
 
       - name: Upload artifact
         if: ${{ inputs.upload_artifact == '1' }}
@@ -121,7 +126,7 @@ jobs:
           path: ${{ steps.package.outputs.result_path }}
 
       - name: Create GitHub Release
-        if: ${{ inputs.upload_artifact == '1' }}
+        if: ${{ inputs.release == '1' }}
         uses: softprops/action-gh-release@v2.0.8
         with:
           tag_name: ${{ inputs.addl_info }}${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}
