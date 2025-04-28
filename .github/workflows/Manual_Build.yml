@@ -98,7 +98,6 @@ jobs:
             libxml2-dev libssh-dev uuid-dev llvm \
             build-essential libreadline-dev zlib1g-dev
 
-          sudo apt-get install -y libicu-dev libicu-static
           ls /usr/lib/aarch64-linux-gnu/libicu*.a
           gcc --version
 
