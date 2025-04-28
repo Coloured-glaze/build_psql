@@ -16,7 +16,7 @@ on:
       configure_flags:
         description: 'Configure 参数'
         default: ''
-        required: true
+        required: false
         type: string
       os_label:
         description: '运行环境 (ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm)'
