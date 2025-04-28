@@ -119,7 +119,7 @@ jobs:
           TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
           $OUTPUT/bin/psql -V
           echo ${{ github.workspace }} && ls -lh "$OUTPUT"
-          tar -czf "$TAR" -C "$OUTPUT" . 
+          tar -czf "$TAR" "$OUTPUT" 
           echo "result_path=${{ github.workspace }}/$TAR" >> $GITHUB_OUTPUT
           echo "result path: $TAR" && ls -lh
 
