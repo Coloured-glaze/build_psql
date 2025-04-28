@@ -95,7 +95,8 @@ jobs:
           sudo apt-get install -y \
             wget curl gcc g++ make libicu-dev bison flex \
             liblz4-dev pkg-config libreadline-dev zlib1g-dev \
-            libxml2-dev libssh-dev uuid-dev llvm
+            libxml2-dev libssh-dev uuid-dev llvm \
+            build-essential libreadline-dev zlib1g-dev
           gcc --version
 
       - name: Build PostgreSQL ${{ inputs.postgresql_version }}
@@ -107,8 +108,7 @@ jobs:
           wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
-          LDFLAGS="-static -Wl,-Bstatic -lstdc++ -lgcc -lpthread -ldl -licuuc -licui18n -licudata -lz -lxml2" \
-          ./configure --prefix="$OUTPUT" --enable-static --disable-shared ${{ inputs.configure_flags }}
+          ./configure --prefix="$OUTPUT" --enable-static \${{ inputs.configure_flags }}
           make -j$(nproc)
           make install
 
