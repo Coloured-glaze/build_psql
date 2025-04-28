@@ -110,9 +110,7 @@ jobs:
           wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
-          ./configure --prefix="$OUTPUT" --enable-static --disable-shared \
-          LDFLAGS="-static -lstdc++ -lm -lsupc++ -Wl,--start-group -lc -lgcc_eh -lgcc -Wl,--end-group" --with-openssl --with-libxml --with-libxslt --with-icu \
-          ${{ inputs.configure_flags }} 
+          ./configure --prefix="$OUTPUT" ${{ inputs.configure_flags }} 
           make -j$(nproc) 
           make install 
 
