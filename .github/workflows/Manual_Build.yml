@@ -55,14 +55,14 @@ jobs:
         run: |
           case "${{ inputs.version }}" in
             commit)
-              version="$(git rev-parse --short HEAD)-${{ inputs.version }}"
+              version="$(git rev-parse --short HEAD)-${{ inputs.postgresql_version }}"
               ;;
             tag)
-              version="git-$(git describe --tags --abbrev=0)-${{ inputs.version }}"
+              version="git-$(git describe --tags --abbrev=0)-${{ inputs.postgresql_version }}"
               ;;
             version)
               if [ -f VERSION ]; then
-                version=$(cat VERSION)-${{ inputs.version }}
+                version=$(cat VERSION)-${{ inputs.postgresql_version }}
               else
                 version="${{ inputs.version }}"
               fi
@@ -96,6 +96,7 @@ jobs:
             wget curl gcc g++ make libicu-dev bison flex \
             liblz4-dev pkg-config libreadline-dev zlib1g-dev \
             libxml2-dev libssh-dev uuid-dev llvm
+          gcc --version
 
       - name: Build PostgreSQL ${{ inputs.postgresql_version }}
         env:
@@ -106,7 +107,7 @@ jobs:
           wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
-          ./configure --prefix="$OUTPUT" ${{ inputs.configure_flags }}
+          ./configure --prefix="$OUTPUT" --enable-static --disable-shared LDFLAGS='-static' ${{ inputs.configure_flags }}
           make -j$(nproc)
           make install
 
@@ -116,6 +117,7 @@ jobs:
           OUTPUT: ${{ github.workspace }}/psql
         run: |
           TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
+          $OUTPUT/bin/psql -V
           echo ${{ github.workspace }} && ls -lh "$OUTPUT"
           tar -czf "$TAR" -C "$OUTPUT" . 
           echo "result_path=${{ github.workspace }}/$TAR" >> $GITHUB_OUTPUT
@@ -126,14 +128,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           retention-days: 14
-          name: ${{ inputs.addl_info }}postgresql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.version }}-${{ inputs.os_label }}-${{ github.run_id }}
+          name: ${{ inputs.addl_info }}postgresql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}-${{ github.run_id }}
           path: ${{ steps.package.outputs.result_path }}
 
       - name: Create GitHub Release
         if: ${{ inputs.release == '1' }}
         uses: softprops/action-gh-release@v2.0.8
         with:
-          tag_name: ${{ inputs.addl_info }}postgresql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.version }}-${{ inputs.os_label }}
+          tag_name: ${{ inputs.addl_info }}postgresql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}
           files: ${{ steps.package.outputs.result_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
