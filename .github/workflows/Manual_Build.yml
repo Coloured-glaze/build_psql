@@ -95,7 +95,7 @@ jobs:
           OUTPUT: ${{ github.workspace }}/psql
         run: |
           mkdir -p "$OUTPUT"
-          wget https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
+          wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
           ./configure --prefix="$OUTPUT" ${{ inputs.configure_flags }}
@@ -106,8 +106,10 @@ jobs:
         id: package
         run: |
           TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
-          tar -czf "$GITHUB_WORKSPACE/$TAR" -C "$OUTPUT" .
-          echo "result_path=$GITHUB_WORKSPACE/$TAR" >> $GITHUB_OUTPUT
+          echo ${{ github.workspace }} && ls -lh &&  ls -lh "$OUTPUT"
+          tar -czf "$TAR" -C "$OUTPUT" .
+          echo "result_path=${{ github.workspace }}/$TAR" >> $GITHUB_OUTPUT
+          echo "result path=$TAR"
 
       - name: Upload artifact
         if: ${{ inputs.upload_artifact == '1' }}
