@@ -23,13 +23,13 @@ on:
         default: 'ubuntu-24.04-arm'
         required: true
         type: string
-      upload_artifact:
-        description: '是否上传 Artifact (0/1)'
+      release:
+        description: '是否创建 release (0/1)'
         default: '0'
         required: true
         type: string
-      release:
-        description: '是否发布 release (0/1)'
+      upload_artifact:
+        description: '是否上传 Artifact (0/1)'
         default: '0'
         required: true
         type: string
@@ -37,6 +37,9 @@ on:
         description: '附加信息'
         default: ''
         required: false
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -122,6 +125,7 @@ jobs:
         if: ${{ inputs.upload_artifact == '1' }}
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 14
           name: ${{ inputs.addl_info }}${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}-${{ github.run_id }}
           path: ${{ steps.package.outputs.result_path }}
 
