@@ -18,6 +18,11 @@ on:
         default: ''
         required: false
         type: string
+      tarball_url:
+        description: '源码下载链接 (为空则根据版本自动生成 PostgreSQL 官方链接，若填写则下载指定链接)'
+        default: ''
+        required: false
+        type: string
       os_label:
         description: '运行环境 (ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm)'
         default: 'ubuntu-22.04-arm'
@@ -107,21 +112,33 @@ jobs:
           OUTPUT: ${{ github.workspace }}/psql
         run: |
           mkdir -p "$OUTPUT"
-          wget -q https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz
-          tar -zxf postgresql-$PSQL_VER.tar.gz
-          cd postgresql-$PSQL_VER
+          if [ -n "${{ inputs.tarball_url }}" ]; then
+            TARBALL_PATH="custom-psql.tar.gz"
+            wget -q "${{ inputs.tarball_url }}" -O "$TARBALL_PATH"
+          else
+            TARBALL_PATH="postgresql-$PSQL_VER.tar.gz"
+            wget -q "https://ftp.postgresql.org/pub/source/v$PSQL_VER/postgresql-$PSQL_VER.tar.gz" -O "$TARBALL_PATH"
+          fi
           
-          # 配置说明：
-          # 1. 使用动态链接以提高兼容性，不再强制使用报错频出的 -static
-          # 2. 通过 RPATH ($ORIGIN) 确保二进制程序能找到同级 lib 目录下的 libpq 等库
-          # 3. 排除 ICU 和 LLVM 以减少重量级依赖，提高在不同系统间的移植性
-          ./configure \
+          # 提取源码
+          mkdir -p source
+          tar -zxf "$TARBALL_PATH" -C source --strip-components=1
+          cd source
+          
+          # 配置与编译
+          # 1. 使用动态链接以提高兼容性
+          # 2. 通过 RPATH 确保二进制程序能找到同级 lib
+          # 3. 补丁/优化：启用无名 POSIX 信号量，并参考 Termux 优化
+          CPPFLAGS="-DUSE_UNNAMED_POSIX_SEMAPHORES=1" ./configure \
             --build=aarch64-unknown-linux-gnu \
             --host=aarch64-unknown-linux-gnu \
             --prefix="$OUTPUT" \
             --without-icu \
             --without-llvm \
             --disable-spinlocks \
+            --with-uuid=e2fs \
+            pgac_cv_prog_cc_LDFLAGS_EX_BE__Wl___export_dynamic=yes \
+            pgac_cv_prog_cc_LDFLAGS__Wl___as_needed=yes \
             CFLAGS="-fPIC" \
             LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" \
             ${{ inputs.configure_flags }}
