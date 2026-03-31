@@ -155,7 +155,11 @@ jobs:
           TAR=psql-${{ steps.determine_version.outputs.determined_version }}-${{ inputs.os_label }}.tar.gz
           file "$OUTPUT/bin/postgres"
           ldd "$OUTPUT/bin/postgres"
+          
           $OUTPUT/bin/psql -V
+          $OUTPUT/bin/initdb database_1 
+          $OUTPUT/bin/pg_config 
+
           echo ${{ github.workspace }} && ls -lh "$OUTPUT"
           tar -czf "$TAR" psql 
           echo "result_path=${{ github.workspace }}/$TAR" >> $GITHUB_OUTPUT
