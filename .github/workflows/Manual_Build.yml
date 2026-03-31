@@ -157,7 +157,7 @@ jobs:
           ldd "$OUTPUT/bin/postgres"
           $OUTPUT/bin/psql -V
           echo ${{ github.workspace }} && ls -lh "$OUTPUT"
-          tar -czf "$TAR" "$OUTPUT" 
+          tar -czf "$TAR" psql 
           echo "result_path=${{ github.workspace }}/$TAR" >> $GITHUB_OUTPUT
           echo "result path: $TAR" && ls -lh
 
