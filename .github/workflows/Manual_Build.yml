@@ -111,27 +111,20 @@ jobs:
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
           
-          # Configure 时不使用 --static，确保能通过检查
+          # 配置说明：
+          # 1. 使用动态链接以提高兼容性，不再强制使用报错频出的 -static
+          # 2. 通过 RPATH ($ORIGIN) 确保二进制程序能找到同级 lib 目录下的 libpq 等库
+          # 3. 排除 ICU 和 LLVM 以减少重量级依赖，提高在不同系统间的移植性
           ./configure \
             --build=aarch64-unknown-linux-gnu \
             --host=aarch64-unknown-linux-gnu \
             --prefix="$OUTPUT" \
-            --enable-static \
-            --disable-shared \
             --without-icu \
             --without-llvm \
             CFLAGS="-fPIC" \
-            LDFLAGS="" \
+            LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" \
             ${{ inputs.configure_flags }}
           
-          # 禁用转换过程等动态加载模块，它们与 -static 冲突且在全静态环境下无法使用
-          echo "all install clean:" > src/backend/utils/mb/conversion_procs/Makefile
-          
-          # 使用静态链接编译
-          # 修复 1：修改 Makefile.global 而非命令行覆盖，以保留内部库路径 (-L...)
-          # 修复 2：将 -static 注入 LDFLAGS_EX 而非 LDFLAGS，这只影响最终可执行程序的链接，
-          # 避免干扰可能存在的共享库构建过程（如 libpq.so 如果被构建的话）
-          sed -i 's/^LDFLAGS_EX = /LDFLAGS_EX = -static /' src/Makefile.global
           make -j$(nproc)
           make install 
 
