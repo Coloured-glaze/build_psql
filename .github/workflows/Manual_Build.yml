@@ -122,6 +122,7 @@ jobs:
           
           # 提取源码
           mkdir -p source
+          echo "$TARBALL_PATH"
           tar -zxf "$TARBALL_PATH" -C source --strip-components=1
           cd source
           
