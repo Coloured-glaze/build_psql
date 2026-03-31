@@ -20,7 +20,7 @@ on:
         type: string
       os_label:
         description: '运行环境 (ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm)'
-        default: 'ubuntu-24.04-arm'
+        default: 'ubuntu-22.04-arm'
         required: true
         type: string
       release:
@@ -132,7 +132,10 @@ jobs:
           done
           
           # 使用静态链接编译
-          make -j$(nproc) LDFLAGS="--static"
+          # 修复：在命令行覆盖 LDFLAGS 会导致 Makefile 丢失内部库的搜索路径（如 -L../../src/common）
+          # 通过修改 src/Makefile.global 来追加 -static，确保 Makefile 自身的路径追加逻辑还能生效
+          sed -i 's/^LDFLAGS = /LDFLAGS = -static /' src/Makefile.global
+          make -j$(nproc)
           make install 
 
       - name: Package into tar.gz
