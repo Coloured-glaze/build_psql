@@ -121,6 +121,7 @@ jobs:
             --prefix="$OUTPUT" \
             --without-icu \
             --without-llvm \
+            --disable-spinlocks \
             CFLAGS="-fPIC" \
             LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'" \
             ${{ inputs.configure_flags }}
