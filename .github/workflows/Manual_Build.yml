@@ -111,7 +111,7 @@ jobs:
           tar -zxf postgresql-$PSQL_VER.tar.gz
           cd postgresql-$PSQL_VER
           
-          # 先正常 configure，使用简单的静态链接标志
+          # Configure 时不使用 LDFLAGS，确保能通过检查
           ./configure \
             --build=aarch64-unknown-linux-gnu \
             --host=aarch64-unknown-linux-gnu \
@@ -119,14 +119,13 @@ jobs:
             --enable-static \
             --disable-shared \
             --without-icu \
+            --without-llvm \
             CFLAGS="-fPIC" \
             LDFLAGS="" \
             ${{ inputs.configure_flags }}
           
-          # 编译时修改 Makefile.global 添加静态链接
-          sed -i 's/^LDFLAGS = /LDFLAGS = -static /' src/Makefile.global
-          
-          make -j$(nproc)
+          # 编译主程序时使用静态链接
+          make -j$(nproc) LDFLAGS="-static -all-static"
           make install 
 
       - name: Package into tar.gz
